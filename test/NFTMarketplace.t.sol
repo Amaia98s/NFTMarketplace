@@ -4,113 +4,111 @@ import "forge-std/Test.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import "../src/NFTMarketplace.sol";
 
-contract MockNFT is ERC721{
+contract MockNFT is ERC721 {
+    constructor() ERC721("MockNFT", "MNFT") {}
 
-    constructor() ERC721("MockNFT","MNFT"){}
-
-    function mint(address to_, uint256 tokenId_) external{
+    function mint(address to_, uint256 tokenId_) external {
         _mint(to_, tokenId_);
     }
-
 }
 
-contract NFTMarketplaceTest is Test{
-
+contract NFTMarketplaceTest is Test {
     NFTMarketplace marketplace;
     MockNFT nft;
     address deployer = vm.addr(1);
     address user = vm.addr(2);
     uint256 tokenId = 0;
-    function setUp() public{
+
+    function setUp() public {
         vm.startPrank(deployer);
         marketplace = new NFTMarketplace();
         nft = new MockNFT();
         vm.stopPrank();
 
         vm.startPrank(user);
-        nft.mint(user,tokenId);
+        nft.mint(user, tokenId);
         vm.stopPrank();
     }
 
-    function testMintNFT() public view{
+    function testMintNFT() public view {
         address ownerOf = nft.ownerOf(tokenId);
         assert(ownerOf == user);
     }
-    function testShouldRevertIfPriceIsZero() public{
+
+    function testShouldRevertIfPriceIsZero() public {
         vm.startPrank(user);
         vm.expectRevert("Price can not be 0");
-        marketplace.listNFT(address(nft),tokenId, 0);
+        marketplace.listNFT(address(nft), tokenId, 0);
         vm.stopPrank();
     }
 
-    function testShouldRevertIfNotOwner() public{
+    function testShouldRevertIfNotOwner() public {
         vm.startPrank(user);
 
         address user2_ = vm.addr(3);
-        uint256 tokenId_ =1;
+        uint256 tokenId_ = 1;
         nft.mint(user2_, tokenId_);
         vm.expectRevert("You are not the owner of the NFT");
-        marketplace.listNFT(address(nft), tokenId_,1);
+        marketplace.listNFT(address(nft), tokenId_, 1);
         vm.stopPrank();
     }
 
-    function testListNFTCorrectly () public {
+    function testListNFTCorrectly() public {
         vm.startPrank(user);
-        (address sellerBferoe,,,)= marketplace.listing(address(nft),tokenId);   
-        marketplace.listNFT(address(nft),tokenId, 1);
-        (address sellerAfter,,,)= marketplace.listing(address(nft),tokenId);  
+        (address sellerBferoe,,,) = marketplace.listing(address(nft), tokenId);
+        marketplace.listNFT(address(nft), tokenId, 1);
+        (address sellerAfter,,,) = marketplace.listing(address(nft), tokenId);
         assert(sellerBferoe == address(0) && sellerAfter == user);
         vm.stopPrank();
     }
 
     function testListShouldRevertIfNotOwner() public {
-         vm.startPrank(user);
-        (address sellerBferoe,,,)= marketplace.listing(address(nft),tokenId);   
-        marketplace.listNFT(address(nft),tokenId, 1);
-        (address sellerAfter,,,)= marketplace.listing(address(nft),tokenId);  
+        vm.startPrank(user);
+        (address sellerBferoe,,,) = marketplace.listing(address(nft), tokenId);
+        marketplace.listNFT(address(nft), tokenId, 1);
+        (address sellerAfter,,,) = marketplace.listing(address(nft), tokenId);
         assert(sellerBferoe == address(0) && sellerAfter == user);
         vm.stopPrank();
 
         address user2 = vm.addr(3);
         vm.startPrank(user2);
         vm.expectRevert("You are not the listing owner");
-        marketplace.cancelList(address(nft),tokenId);
+        marketplace.cancelList(address(nft), tokenId);
 
         vm.stopPrank();
     }
 
     function testCancelListShouldWorkCorrectly() public {
         vm.startPrank(user);
-       
-        (address sellerBferoe,,,)= marketplace.listing(address(nft),tokenId);   
-        marketplace.listNFT(address(nft),tokenId, 1);
-        (address sellerAfter,,,)= marketplace.listing(address(nft),tokenId);  
-       
+
+        (address sellerBferoe,,,) = marketplace.listing(address(nft), tokenId);
+        marketplace.listNFT(address(nft), tokenId, 1);
+        (address sellerAfter,,,) = marketplace.listing(address(nft), tokenId);
+
         assert(sellerBferoe == address(0) && sellerAfter == user);
-        
-        marketplace.cancelList(address(nft),tokenId);
-        (address sellerAfter2,,,)= marketplace.listing(address(nft),tokenId);  
+
+        marketplace.cancelList(address(nft), tokenId);
+        (address sellerAfter2,,,) = marketplace.listing(address(nft), tokenId);
         assert(sellerAfter2 == address(0));
         vm.stopPrank();
-
-
     }
-    function testCanNotBytUnlistedNFT() public{
+
+    function testCanNotBytUnlistedNFT() public {
         address user2 = vm.addr(3);
         vm.startPrank(user2);
-        
+
         vm.expectRevert("Lisitng not exists");
         marketplace.buyNft(address(nft), tokenId);
-        
+
         vm.stopPrank();
     }
 
-    function testCanNotBuyWithIncorrectPay() public{
+    function testCanNotBuyWithIncorrectPay() public {
         vm.startPrank(user);
         uint256 price = 1e18;
-        (address sellerBferoe,,,)= marketplace.listing(address(nft),tokenId);   
-        marketplace.listNFT(address(nft),tokenId, price);
-        (address sellerAfter,,,)= marketplace.listing(address(nft),tokenId);  
+        (address sellerBferoe,,,) = marketplace.listing(address(nft), tokenId);
+        marketplace.listNFT(address(nft), tokenId, price);
+        (address sellerAfter,,,) = marketplace.listing(address(nft), tokenId);
         assert(sellerBferoe == address(0) && sellerAfter == user);
         vm.stopPrank();
 
@@ -118,16 +116,16 @@ contract NFTMarketplaceTest is Test{
         vm.startPrank(user2);
         vm.deal(user2, price);
         vm.expectRevert("Incorrect price");
-        marketplace.buyNft{value: price -1}(address(nft) ,tokenId);
+        marketplace.buyNft{value: price - 1}(address(nft), tokenId);
         vm.stopPrank();
     }
 
-    function testShouldBuyNFTCorrectly() public{
+    function testShouldBuyNFTCorrectly() public {
         vm.startPrank(user);
         uint256 price = 1e18;
-        (address sellerBferoe,,,)= marketplace.listing(address(nft),tokenId);   
-        marketplace.listNFT(address(nft),tokenId, price);
-        (address sellerAfter,,,)= marketplace.listing(address(nft),tokenId);  
+        (address sellerBferoe,,,) = marketplace.listing(address(nft), tokenId);
+        marketplace.listNFT(address(nft), tokenId, price);
+        (address sellerAfter,,,) = marketplace.listing(address(nft), tokenId);
         assert(sellerBferoe == address(0) && sellerAfter == user);
         nft.approve(address(marketplace), tokenId);
         vm.stopPrank();
@@ -138,19 +136,16 @@ contract NFTMarketplaceTest is Test{
 
         uint256 balanceBefore = address(user).balance;
         address ownerBefore = nft.ownerOf(tokenId);
-        (address sellerBferoe2,,,)= marketplace.listing(address(nft),tokenId);
-        marketplace.buyNft{value: price}(address(nft) ,tokenId);
-        (address sellerAfter2,,,)= marketplace.listing(address(nft),tokenId);
+        (address sellerBferoe2,,,) = marketplace.listing(address(nft), tokenId);
+        marketplace.buyNft{value: price}(address(nft), tokenId);
+        (address sellerAfter2,,,) = marketplace.listing(address(nft), tokenId);
         address ownerAfter = nft.ownerOf(tokenId);
         uint256 balanceAfter = address(user).balance;
-       
+
         assert(sellerBferoe2 == user && sellerAfter2 == address(0));
         assert(ownerBefore == user && ownerAfter == user2);
         assert(balanceAfter == balanceBefore + price);
 
-
-
         vm.stopPrank();
     }
-    
 }
